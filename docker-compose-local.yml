@@ -3,6 +3,7 @@ services:
     build:
       context: ./          # Working directory for Docker
       dockerfile: ./Dockerfile
+      network: host
     restart: always
     image: orientamed-api-image
     ports:
