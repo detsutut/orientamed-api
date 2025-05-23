@@ -12,6 +12,7 @@ services:
       - SSL_CERTFILE=${SSL_CERTFILE}
     volumes:
       - ./core:/app/core
+      - ./debug_app:/app/debug_app
       - ./data:/app/data
       - ./api_utils:/app/api_utils
       - ./api.py:/app/api.py
