@@ -9,11 +9,15 @@ import logging
 from logging.handlers import RotatingFileHandler
 from boto3 import Session
 import uvicorn
+import gradio as gr
 
 ############# .ENV ####################
 
 if find_dotenv():
     load_dotenv()
+
+if find_dotenv("secrets.env"):
+    load_dotenv("secrets.env")
 elif find_dotenv("core/secrets.env"):
     load_dotenv("core/secrets.env")
 else:
@@ -24,6 +28,7 @@ else:
 from core.rags import Rag
 from core.utils import from_list_to_messages, get_mfa_response
 from api_utils.login import verify_token, authenticate, create_access_token
+from app import debug_app
 
 ############# SETTINGS ##################
 with open(os.getenv("API_SETTINGS_PATH")) as stream:
@@ -100,6 +105,14 @@ async def check(access_token: str):
         "logged": True if payload else None,
     }
 
+@app.post("/auth/check", response_model=dict)
+async def check(access_token: str):
+    payload = verify_token(access_token)
+    return {
+        "status": "ok",
+        "logged": True if payload else None,
+    }
+
 @app.post("/auth/login", response_model=dict)
 async def log(credentials: Credentials):
     if authenticate(credentials.username, credentials.password):
@@ -115,8 +128,10 @@ async def log(credentials: Credentials):
             "error": "Invalid username or password"
         }, status_code=401)
 
+from fastapi import Form
+
 @app.post("/auth/init", response_model=dict)
-async def init(access_token: str, mfa_token: str):
+async def init(access_token: str = Form(...), mfa_token: str = Form(...)):
     payload = verify_token(access_token)
     if payload:
         global RAG
@@ -159,30 +174,28 @@ def generate(query: GenerateQueryParams, access_token: str):
                                "output_tokens_count": 0,
                                "query_aug": query.augment_query,
                                "retrieve_only": query.retrieve_only,
-                               "use_graph": query.use_graph, })
+                               "use_graph": query.use_graph,
+                               "use_embeddings": query.use_embeddings,})
         return JSONResponse(content={
             "answer": response.get("answer"),
-            "input_tokens_count": response.get("input_tokens_count"),
-            "output_tokens_count": response.get("output_tokens_count"),
+            "consumed_tokens":{
+                "input:": response.get("input_tokens_count",0),
+                "output": response.get("output_tokens_count",0)
+            },
             "retrieved_documents": {
-                "embeddings": {
-                    "docs": [d.model_dump() for d in response.get("context").get("docs")],
-                    "scores": response.get("context").get("scores")
-                },
-                "graphs": {
-                    "docs": [d.model_dump() for d in response.get("kg_context").get("docs")],
-                    "scores": response.get("kg_context").get("scores"),
-                    "paths": response.get("kg_context").get("paths")
-                }
+                "embeddings": [d.model_dump() for d in response.get("docs_embeddings",[])],
+                "graphs": [d.model_dump() for d in response.get("docs_graph",[])]
             },
             "concepts": {
-                "query": response.get("query_concepts"),
-                "answer": response.get("answer_concepts")
+                "query": response.get("query_concepts",[]),
+                "answer": response.get("answer_concepts",[])
             }
         }, status_code=200)
     except Exception as e:
         logger.error(e)
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+app = gr.mount_gradio_app(app, debug_app.debug_app, path="/debug/gui")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

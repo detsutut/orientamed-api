@@ -15,10 +15,10 @@ def get_mfa_response(mfa_token, duration: int = 900):
         return None
     try:
         sts_client = boto3.client('sts',
-                            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                            aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"))
+                            aws_access_key_id=os.environ.get("LOCAL_AWS_ACCESS_KEY_ID"),
+                            aws_secret_access_key=os.environ.get("LOCAL_AWS_SECRET_ACCESS_KEY"))
         response = sts_client.get_session_token(DurationSeconds=duration,
-                                                SerialNumber=os.environ.get("AWS_ARN_MFA_DEVICE"),
+                                                SerialNumber=os.environ.get("LOCAL_AWS_ARN_MFA_DEVICE"),
                                                 TokenCode=mfa_token)
         return response
     except Exception as exc:

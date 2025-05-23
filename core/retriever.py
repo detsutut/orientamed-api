@@ -10,6 +10,8 @@ from langchain_core.documents import Document
 import yaml
 import os
 
+from core.data_models import RetrievedDocument
+
 logger = logging.getLogger('app.'+__name__)
 logging.getLogger("langchain_aws").setLevel(logging.WARNING)
 logging.getLogger("langchain_core").setLevel(logging.WARNING)
@@ -69,13 +71,15 @@ class Retriever:
     def embed(self, query: str):
         return self.embeddings.embed_query(query)
 
-    def retrieve(self, query:str, n=5) -> List[Document]:
-        return self.vector_store.similarity_search(query, k=n)
+    def retrieve(self, query:str, n=5) -> List[RetrievedDocument]:
+        retrieval_results = self.vector_store.similarity_search(query, k=n)
+        return [RetrievedDocument(**d.model_dump()) for d in retrieval_results]
 
     #Maximal marginal relevance optimizes for similarity to query and diversity among selected documents.
-    def retrieve_diverse(self, query: str, n=10) -> List[Document]:
-        return self.vector_store.max_marginal_relevance_search(query, k=n, fetch_k=n*10)
+    def retrieve_diverse(self, query: str, n=10) -> List[RetrievedDocument]:
+        retrieval_results = self.vector_store.max_marginal_relevance_search(query, k=n, fetch_k=n*10)
+        return [RetrievedDocument(**d.model_dump()) for d in retrieval_results]
 
-    def retrieve_with_scores(self, query:str, n=5, score_threshold=0.5) -> List[Tuple[Document, float]]:
-        docs_retrieved = [doc for doc in self.vector_store.similarity_search_with_score(query, k=n) if doc[1]>=score_threshold]
-        return [doc[0] for doc in docs_retrieved], [doc[1] for doc in docs_retrieved]
+    def retrieve_with_scores(self, query:str, n=5, score_threshold=0.5) -> List[RetrievedDocument]:
+        retrieval_results = [doc for doc in self.vector_store.similarity_search_with_score(query, k=n) if doc[1]>=score_threshold]
+        return [RetrievedDocument(score=d[1],**d[0].model_dump()) for d in retrieval_results]
