@@ -4,8 +4,6 @@ __pycache__/
 *$py.class
 *.env
 */*.env
-app/log.csv
-app/logs/*
 *.log
 
 # Pycharm junk

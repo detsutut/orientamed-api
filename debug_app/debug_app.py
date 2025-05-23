@@ -37,7 +37,7 @@ def reply(user_input, emb, graph, qa, ro, token):
     return res.json()
 
 
-with gr.Blocks(title="Debug App") as debug_app:
+with gr.Blocks(title="Debug App") as app:
     with gr.Row():
         user = gr.Text(label="Username")
         pw = gr.Text(label="Password", type="password")

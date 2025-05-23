@@ -28,7 +28,7 @@ else:
 from core.rags import Rag
 from core.utils import from_list_to_messages, get_mfa_response
 from api_utils.login import verify_token, authenticate, create_access_token
-from app import debug_app
+from debug_app import debug_app
 
 ############# SETTINGS ##################
 with open(os.getenv("API_SETTINGS_PATH")) as stream:
@@ -195,7 +195,7 @@ def generate(query: GenerateQueryParams, access_token: str):
         logger.error(e)
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-app = gr.mount_gradio_app(app, debug_app.debug_app, path="/debug/gui")
+app = gr.mount_gradio_app(app, debug_app.app, path="/debug/gui")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
