@@ -38,3 +38,12 @@ def verify_token(token: str):
     except Exception as e:
         logger.error(e)
         return None
+
+def login(username: str, password: str):
+    if authenticate(username, password):
+        token = create_access_token(username)
+        logger.debug(f"Successfully authenticated {username}...")
+    else:
+        logger.debug(f"Authentication failed")
+        token = None
+    return token

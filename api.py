@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 import yaml
 import logging
 from logging.handlers import RotatingFileHandler
-from boto3 import Session
 import uvicorn
 import gradio as gr
 
@@ -25,10 +24,9 @@ else:
 
 ############# LOCAL MODULES ####################
 
-from core.rags import Rag
-from core.utils import from_list_to_messages, get_mfa_response
-from api_utils.login import verify_token, authenticate, create_access_token
-from debug_app import debug_app
+from rag import rag_invoke
+from utils.login import verify_token, login
+from gui import gradio_gui
 
 ############# SETTINGS ##################
 with open(os.getenv("API_SETTINGS_PATH")) as stream:
@@ -75,12 +73,11 @@ class GenerateQueryParams(BaseModel):
     use_embeddings: bool = Field(default=True, description="Use embeddings")
 
 ############### API ######################
-app = FastAPI(title="OrientaMed", contact={"name": "Tommaso Buonocore", "url": "https://github.com/detsutut", "email": "buonocore.tms@gmail.com"})
+app = FastAPI(title="OrientaMed",
+              contact={"name": "Tommaso Buonocore",
+                       "url": "https://github.com/detsutut",
+                       "email": "buonocore.tms@gmail.com"})
 
-logger.info("Initializing RAG model...")
-RAG = Rag(session=Session(), vector_store=api_config.get("vector-db-path"))
-
-logger.info("Done.")
 @app.get("/")
 def read_root():
     return {}
@@ -105,59 +102,20 @@ async def check(access_token: str):
         "logged": True if payload else None,
     }
 
-@app.post("/auth/check", response_model=dict)
-async def check(access_token: str):
-    payload = verify_token(access_token)
-    return {
-        "status": "ok",
-        "logged": True if payload else None,
-    }
-
 @app.post("/auth/login", response_model=dict)
 async def log(credentials: Credentials):
-    if authenticate(credentials.username, credentials.password):
-        token = create_access_token(credentials.username)
-        return {
+    token = login(credentials.username, credentials.password)
+    if token:
+        return JSONResponse(content={
             "status": "ok",
             "access-token": token
-        }
+        })
     else:
         return JSONResponse(content={
             "status": "error",
             "access-token": None,
             "error": "Invalid username or password"
         }, status_code=401)
-
-from fastapi import Form
-
-@app.post("/auth/init", response_model=dict)
-async def init(access_token: str = Form(...), mfa_token: str = Form(...)):
-    payload = verify_token(access_token)
-    if payload:
-        global RAG
-        logger.info("Establishing session with AWS bedrock service...")
-        mfa_response = get_mfa_response(mfa_token)
-        if mfa_response is None:
-            logger.error("Impossible to establish a session with AWS bedrock service. Check your MFA token and try again. If the problem persists, contact the developer.")
-            return JSONResponse(content={
-                "status": "error",
-                "access-token": None,
-                "error": "Invalid token"
-            }, status_code=401)
-        session = Session(aws_access_key_id=mfa_response['Credentials']['AccessKeyId'],
-                          aws_secret_access_key=mfa_response['Credentials']['SecretAccessKey'],
-                          aws_session_token=mfa_response['Credentials']['SessionToken'])
-        RAG = Rag(session=session, vector_store=api_config.get("vector-db-path"))
-        logger.info("RAG updated")
-        return JSONResponse(content={
-            "status": "ok",
-        }, status_code=200)
-    else:
-        return JSONResponse(content={
-            "status": "error",
-            "error": "Invalid token."
-        }, status_code=401)
-
 
 @app.post("/generate", response_model=dict)
 def generate(query: GenerateQueryParams, access_token: str):
@@ -167,15 +125,13 @@ def generate(query: GenerateQueryParams, access_token: str):
     if not query.user_input:
         return JSONResponse(content={"error": "Please provide a text."}, status_code=400)
     try:
-        response = RAG.invoke({"query": query.user_input,
-                               "history": from_list_to_messages(query.history),
-                               "additional_context": query.additional_context,
-                               "input_tokens_count": 0,
-                               "output_tokens_count": 0,
-                               "query_aug": query.augment_query,
-                               "retrieve_only": query.retrieve_only,
-                               "use_graph": query.use_graph,
-                               "use_embeddings": query.use_embeddings,})
+        response = rag_invoke(query=query.user_input,
+                              history=query.history,
+                              additional_context=query.additional_context,
+                              query_aug=query.augment_query,
+                              retrieve_only=query.retrieve_only,
+                              use_graph=query.use_graph,
+                              use_embeddings=query.use_embeddings)
         return JSONResponse(content={
             "answer": response.get("answer"),
             "consumed_tokens":{
@@ -195,7 +151,7 @@ def generate(query: GenerateQueryParams, access_token: str):
         logger.error(e)
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-app = gr.mount_gradio_app(app, debug_app.app, path="/debug/gui")
+app = gr.mount_gradio_app(app, gradio_gui.gui, path="/debug/gui")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

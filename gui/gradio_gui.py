@@ -1,0 +1,61 @@
+import gradio as gr
+from boto3 import Session
+import logging
+
+from utils.login import login, verify_token
+from core.utils import get_mfa_response
+from rag import update_rag, rag_invoke
+
+logger = logging.getLogger('app.' + __name__)
+
+
+def user_login(user: str, pw: str, mfa_token: str | None = None):
+    token = login(user, pw)
+    if token and mfa_token:
+        mfa_response = get_mfa_response(mfa_token)
+        if mfa_response:
+            logger.info("Establishing session with AWS bedrock service...")
+            session = Session(aws_access_key_id=mfa_response['Credentials']['AccessKeyId'],
+                              aws_secret_access_key=mfa_response['Credentials']['SecretAccessKey'],
+                              aws_session_token=mfa_response['Credentials']['SessionToken'])
+            update_rag(session)
+        else:
+            logger.error(
+                "Impossible to establish a session with AWS bedrock service. Check your MFA token and try again. If the problem persists, contact the developer.")
+    return token
+
+
+def reply(user_input, emb, graph, qa, ro, token):
+    if verify_token(token):
+        request = rag_invoke(query=user_input,
+                             query_aug=qa,
+                             use_graph=graph,
+                             retrieve_only=ro,
+                             use_embeddings=emb)
+        return request.json()
+    return None
+
+
+with gr.Blocks(title="Debug App") as gui:
+    with gr.Row():
+        user = gr.Text(label="Username")
+        pw = gr.Text(label="Password", type="password")
+        token = gr.Text(label="Token")
+        mfa_token = gr.Text(label="MFA Token (Local Deployment Only)", type="password")
+        login_btn = gr.Button("Login")
+    with gr.Group():
+        with gr.Row():
+            user_input = gr.Textbox(label="Input")
+        with gr.Row():
+            emb = gr.Checkbox(label="Embeddings", value=True)
+            graph = gr.Checkbox(label="Graphs", value=True)
+            qa = gr.Checkbox(label="Query Aug", value=False)
+            ro = gr.Checkbox(label="Retrieve Only", value=False)
+        with gr.Row():
+            submit_btn = gr.Button("Send", variant="primary")
+    with gr.Group():
+        response = gr.JSON(label="Output")
+
+    login_btn.click(user_login, inputs=[user, pw, mfa_token], outputs=[token])
+    pw.submit(user_login, inputs=[user, pw, mfa_token], outputs=[token])
+    submit_btn.click(reply, inputs=[user_input, emb, graph, qa, ro, token], outputs=[response])
