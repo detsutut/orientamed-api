@@ -32,7 +32,7 @@ def reply(user_input, emb, graph, qa, ro, token):
                              use_graph=graph,
                              retrieve_only=ro,
                              use_embeddings=emb)
-        return request.json()
+        return request
     return None
 
 
