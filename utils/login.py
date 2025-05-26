@@ -47,3 +47,6 @@ def login(username: str, password: str):
         logger.debug(f"Authentication failed")
         token = None
     return token
+
+def is_admin(username: str):
+    return username==os.environ.get("IS_ADMIN","")

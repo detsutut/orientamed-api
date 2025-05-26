@@ -25,7 +25,7 @@ else:
 ############# LOCAL MODULES ####################
 
 from rag import rag_invoke
-from utils.login import verify_token, login
+from utils.login import verify_token, login, is_admin
 from gui import gradio_gui
 
 ############# SETTINGS ##################
@@ -108,7 +108,8 @@ async def log(credentials: Credentials):
     if token:
         return JSONResponse(content={
             "status": "ok",
-            "access-token": token
+            "access-token": token,
+            "admin": is_admin(credentials.username)
         })
     else:
         return JSONResponse(content={
