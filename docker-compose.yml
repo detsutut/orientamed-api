@@ -16,7 +16,7 @@ services:
       - ./data:/app/data
       - ./utils:/app/utils
       - ./api.py:/app/api.py
-      - ./api.py:/app/rag.py
+      - ./rag.py:/app/rag.py
       - ./api_settings.yaml:/app/api_settings.yaml
       - ./favicon.ico:/app/favicon.ico
       - ${SSL_KEYFILE}:/app/ssl_key.pem:ro
