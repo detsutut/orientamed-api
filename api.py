@@ -24,7 +24,7 @@ else:
 
 ############# LOCAL MODULES ####################
 
-from rag import rag_invoke
+from .rag import rag_invoke
 from utils.login import verify_token, login
 from gui import gradio_gui
 
