@@ -27,7 +27,6 @@ class ConsumedTokens(BaseModel):
 
 class LLMResponse(BaseModel):
     answer: str
-    input_tokens_count: int
-    output_tokens_count: int
+    consumed_tokens: ConsumedTokens
     retrieved_documents: RetrievedDocuments
     concepts: Concepts

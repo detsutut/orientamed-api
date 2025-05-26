@@ -135,7 +135,7 @@ def generate(query: GenerateQueryParams, access_token: str):
         return JSONResponse(content={
             "answer": response.get("answer"),
             "consumed_tokens":{
-                "input:": response.get("input_tokens_count",0),
+                "input": response.get("input_tokens_count",0),
                 "output": response.get("output_tokens_count",0)
             },
             "retrieved_documents": {
