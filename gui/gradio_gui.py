@@ -1,8 +1,10 @@
+import time
+
 import gradio as gr
 from boto3 import Session
 import logging
 
-from utils.login import login, verify_token
+from utils.login import login, verify_token, log_usage, check_ban, check_daily_token_limit, set_softban
 from core.utils import get_mfa_response
 from rag import update_rag, rag_invoke
 
@@ -25,13 +27,29 @@ def user_login(user: str, pw: str, mfa_token: str | None = None):
     return token
 
 
-def reply(user_input, emb, graph, qa, ro, token):
-    if verify_token(token):
+def reply(user_input, emb, graph, qa, ro, token, r: gr.Request):
+    user = verify_token(token)
+    if user:
+        if check_ban(user):
+            gr.Warning("User is banned",  duration=10)
+            return None
+        start_time = time.time()
         request = rag_invoke(query=user_input,
                              query_aug=qa,
                              use_graph=graph,
                              retrieve_only=ro,
                              use_embeddings=emb)
+        duration_ms = int((time.time() - start_time) * 1000)
+        log_usage(username=user,
+                  token_in=request.get("input_tokens_count", 0),
+                  token_out=request.get("output_tokens_count", 0),
+                  duration_ms=duration_ms,
+                  session_id=token.split(".")[-1],
+                  ip_address=r.client.host)
+        over = check_daily_token_limit(username=user)
+        if over:
+            logger.warning("User has exceeded the daily token limit.")
+            set_softban(username=user)
         return request
     return None
 

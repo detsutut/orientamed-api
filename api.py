@@ -1,4 +1,6 @@
 import os
+import time
+
 from dotenv import find_dotenv, load_dotenv
 from fastapi import FastAPI
 from typing import Union
@@ -25,7 +27,7 @@ else:
 ############# LOCAL MODULES ####################
 
 from rag import rag_invoke
-from utils.login import verify_token, login, is_admin
+from utils.login import verify_token, login, is_admin, log_usage
 from gui import gradio_gui
 
 ############# SETTINGS ##################
@@ -120,12 +122,13 @@ async def log(credentials: Credentials):
 
 @app.post("/generate", response_model=dict)
 def generate(query: GenerateQueryParams, access_token: str):
-    payload = verify_token(access_token)
-    if not payload:
+    user = verify_token(access_token)
+    if not user:
         return JSONResponse(content={"error": "Invalid token."}, status_code=401)
     if not query.user_input:
         return JSONResponse(content={"error": "Please provide a text."}, status_code=400)
     try:
+        start_time = time.time()
         response = rag_invoke(query=query.user_input,
                               history=query.history,
                               additional_context=query.additional_context,
@@ -133,6 +136,12 @@ def generate(query: GenerateQueryParams, access_token: str):
                               retrieve_only=query.retrieve_only,
                               use_graph=query.use_graph,
                               use_embeddings=query.use_embeddings)
+        duration_ms = int((time.time() - start_time) * 1000)
+        log_usage(username=user,
+                  token_in=response.get("input_tokens_count", 0),
+                  token_out=response.get("output_tokens_count", 0),
+                  duration_ms=duration_ms,
+                  session_id=access_token.split(".")[-1])
         return JSONResponse(content={
             "answer": response.get("answer"),
             "consumed_tokens":{
