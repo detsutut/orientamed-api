@@ -155,6 +155,8 @@ class Rag:
                 return Command(update={"status": "OK"},goto=END)
             else:
                 return Command(goto="ans_generator")
+        if state["answer_generated"] and state["retrieve_only"]:
+            return Command(update={"status": "OK"},goto=END)
         if state["pre_translate"]:
             logger.info(f"Translating Text in English before feeding to Concept Extractor...")
             messages = self.prompts.translation.invoke({"source_lang": "Italian",
