@@ -12,6 +12,7 @@ services:
       - SSL_CERTFILE=${SSL_CERTFILE}
     volumes:
       - ./core:/app/core
+      - ./db:/app/db
       - ./gui:/app/gui
       - ./data:/app/data
       - ./utils:/app/utils
