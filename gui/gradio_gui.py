@@ -4,7 +4,7 @@ import gradio as gr
 from boto3 import Session
 import logging
 
-from utils.login import login, verify_token, log_usage, check_ban, check_daily_token_limit, set_softban
+from utils.login import login, verify_token, log_usage, get_role, check_ban, check_daily_token_limit, set_softban
 from utils.stats import get_usage_statistics
 from core.utils import get_mfa_response
 from rag import update_rag, rag_invoke
@@ -38,7 +38,8 @@ def get_stats(token):
 def reply(user_input, emb, graph, qa, ro, token, r: gr.Request):
     user = verify_token(token)
     if user:
-        if check_ban(user):
+        user_role = get_role(user)
+        if user_role!="admin" and check_ban(user):
             gr.Warning("User is banned",  duration=10)
             return None
         start_time = time.time()
@@ -54,10 +55,11 @@ def reply(user_input, emb, graph, qa, ro, token, r: gr.Request):
                   duration_ms=duration_ms,
                   session_id=token.split(".")[-1],
                   ip_address=r.client.host)
-        over = check_daily_token_limit(username=user)
-        if over:
-            logger.warning("User has exceeded the daily token limit.")
-            set_softban(username=user)
+        if user_role != "admin":
+            over = check_daily_token_limit(username=user, role=user_role)
+            if over:
+                logger.warning("User has exceeded the daily token limit.")
+                set_softban(username=user)
         return request
     return None
 

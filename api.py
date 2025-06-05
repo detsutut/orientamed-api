@@ -27,7 +27,7 @@ else:
 ############# LOCAL MODULES ####################
 
 from rag import rag_invoke
-from utils.login import verify_token, login, is_admin, log_usage
+from utils.login import verify_token, login, get_role, log_usage, check_ban, check_daily_token_limit, set_softban
 from utils.stats import get_usage_statistics
 from gui import gradio_gui
 
@@ -112,7 +112,7 @@ async def log(credentials: Credentials):
         return JSONResponse(content={
             "status": "ok",
             "access-token": token,
-            "admin": is_admin(credentials.username)
+            "role": get_role(credentials.username)
         })
     else:
         return JSONResponse(content={
@@ -143,6 +143,9 @@ def generate(query: GenerateQueryParams, access_token: str):
         return JSONResponse(content={"error": "Invalid token."}, status_code=401)
     if not query.user_input:
         return JSONResponse(content={"error": "Please provide a text."}, status_code=400)
+    user_role = get_role(user)
+    if user_role != "admin" and check_ban(user):
+        return JSONResponse(content={"error": "User is banned."}, status_code=403)
     try:
         start_time = time.time()
         response = rag_invoke(query=query.user_input,
@@ -158,6 +161,11 @@ def generate(query: GenerateQueryParams, access_token: str):
                   token_out=response.get("output_tokens_count", 0),
                   duration_ms=duration_ms,
                   session_id=access_token.split(".")[-1])
+        if user_role != "admin":
+            over = check_daily_token_limit(username=user, role=user_role)
+            if over:
+                logger.warning("User has exceeded the daily token limit.")
+                set_softban(username=user)
         return JSONResponse(content={
             "answer": response.get("answer"),
             "consumed_tokens":{

@@ -139,7 +139,7 @@ def check_ban(username: str):
             logger.warning(f"User {username} is banned until {user.softban_until}")
             return True
         else:
-            logger.warning(f"User {username} is not banned.")
+            logger.debug(f"User {username} is not banned.")
             return False
     except Exception as e:
         logger.error(f"Error checking ban for {username}: {e}")
@@ -147,7 +147,17 @@ def check_ban(username: str):
     finally:
         db.close()
 
-def check_daily_token_limit(username: str, limit: int = 10000):
+def check_daily_token_limit(username: str, role="preview"):
+    if role == "preview":
+        limit = 10000
+    elif role == "admin":
+        logger.warning(f"Checking limit for admin role: this is not supposed to happen.")
+        limit = 500000
+    elif role == "user":
+        limit = 20000
+    else:
+        logger.error(f"Invalid role: {role}")
+        return True
     db: Session = SessionLocal()
     today = datetime.now(timezone.utc).date()
     try:
@@ -189,5 +199,20 @@ def login(username: str, password: str):
         token = None
     return token
 
-def is_admin(username: str):
-    return username==os.environ.get("IS_ADMIN","")
+def get_role(username: str):
+    logger.debug(f"Checking the role of {username}...")
+    db: Session = SessionLocal()
+    try:
+        stmt = select(User).where(User.username == username)
+        user = db.scalars(stmt).first()
+        if user:
+            return user.role
+        else:
+            logger.warning(f"User {username} not found for last_login update")
+            return None
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error checking role {username} role: {e}")
+        return None
+    finally:
+        db.close()
