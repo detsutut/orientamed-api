@@ -169,7 +169,17 @@ class Rag:
         url = "https://dheal-com.unipv.it:7878/extract"
         params = {'text': text_to_send, 'o': 100, 'p': False}
         response = requests.get(url, params=params)
-        concepts = pd.DataFrame(response.json()).to_dict(orient='records')
+        if response.status_code != 200:
+            logger.error("Error during concept extraction. Further investigation needed.")
+            logger.debug(f"Raw response: {response}")
+            concepts = []
+        else:
+            try:
+                concepts = pd.DataFrame(response.json()).to_dict(orient='records')
+            except Exception as e:
+                logger.error(f"Error during concept extraction: {e}")
+                logger.debug(f"Raw response: {response}")
+                concepts = []
         if len(concepts)==0:
             logger.debug("No concepts found, trying with premium translation")
             params = {'text': text_to_send, 'o': 100, 'p': True}
