@@ -42,5 +42,6 @@ def rag_invoke(query,
                            "query_aug": query_aug,
                            "retrieve_only": retrieve_only,
                            "use_graph": use_graph,
-                           "use_embeddings": use_embeddings,})
+                           "use_embeddings": use_embeddings,
+                           "pre_translate": True})
     return response

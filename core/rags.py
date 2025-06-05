@@ -67,6 +67,7 @@ class State(TypedDict):
     use_graph: bool
     use_embeddings: bool
     retrieve_only: bool
+    pre_translate: bool
     #INTERNAL
     answer_generated: bool
     #OUTPUTS
@@ -154,14 +155,24 @@ class Rag:
                 return Command(update={"status": "OK"},goto=END)
             else:
                 return Command(goto="ans_generator")
+        if state["pre_translate"]:
+            logger.info(f"Translating Text in English before feeding to Concept Extractor...")
+            messages = self.prompts.translation.invoke({"source_lang": "Italian",
+                                                          "target_lang": "English",
+                                                          "source_text":  state["query"] if not state["answer_generated"] else state["answer"],
+                                                          }).messages
+            response = self.llm.generate(messages=messages, level="pro")
+            text_to_send = response.content
+        else:
+            text_to_send = state["query"] if not state["answer_generated"] else state["answer"]
         logger.info(f"Extracting Concepts...")
         url = "https://dheal-com.unipv.it:7878/extract"
-        params = {'text': state["query"] if not state["answer_generated"] else state["answer"], 'o': 100, 'p': False}
+        params = {'text': text_to_send, 'o': 100, 'p': False}
         response = requests.get(url, params=params)
         concepts = pd.DataFrame(response.json()).to_dict(orient='records')
         if len(concepts)==0:
             logger.debug("No concepts found, trying with premium translation")
-            params = {'text': state["query"] if not state["answer_generated"] else state["answer"], 'o': 100, 'p': True}
+            params = {'text': text_to_send, 'o': 100, 'p': True}
             response = requests.get(url, params=params)
             concepts = pd.DataFrame(response.json()).to_dict(orient='records')
         if not state["answer_generated"]:

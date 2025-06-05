@@ -87,7 +87,7 @@ def update_user(username: str, last_ip_address: str | None, softban_until: datet
             return True
     except Exception as e:
         db.rollback()
-        logger.error(f"Authentication error for {username}: {e}")
+        logger.error(f"Error updating user info for {username}: {e}")
         return False
     finally:
         db.close()
@@ -142,7 +142,7 @@ def check_ban(username: str):
             logger.warning(f"User {username} is not banned.")
             return False
     except Exception as e:
-        logger.error(f"Authentication error for {username}: {e}")
+        logger.error(f"Error checking ban for {username}: {e}")
         return True
     finally:
         db.close()
@@ -159,7 +159,7 @@ def check_daily_token_limit(username: str, limit: int = 10000):
         ).scalar()
         return total_tokens >= limit
     except Exception as e:
-        logger.error(f"Authentication error for {username}: {e}")
+        logger.error(f"Error checking daily limit for {username}: {e}")
         return True
     finally:
         db.close()

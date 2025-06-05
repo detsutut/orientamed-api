@@ -5,6 +5,7 @@ from boto3 import Session
 import logging
 
 from utils.login import login, verify_token, log_usage, check_ban, check_daily_token_limit, set_softban
+from utils.stats import get_usage_statistics
 from core.utils import get_mfa_response
 from rag import update_rag, rag_invoke
 
@@ -26,6 +27,13 @@ def user_login(user: str, pw: str, mfa_token: str | None = None):
                 "Impossible to establish a session with AWS bedrock service. Check your MFA token and try again. If the problem persists, contact the developer.")
     return token
 
+def get_stats(token):
+    user = verify_token(token)
+    if not user:
+        gr.Warning("Invalid token",  duration=10)
+        return None
+    statistics = get_usage_statistics()
+    return statistics
 
 def reply(user_input, emb, graph, qa, ro, token, r: gr.Request):
     user = verify_token(token)
@@ -64,6 +72,7 @@ with gr.Blocks(title="Debug App") as gui:
     with gr.Group():
         with gr.Row():
             user_input = gr.Textbox(label="Input")
+            stats_btn = gr.Button("Stats", variant="secondary")
         with gr.Row():
             emb = gr.Checkbox(label="Embeddings", value=True)
             graph = gr.Checkbox(label="Graphs", value=True)
@@ -75,5 +84,6 @@ with gr.Blocks(title="Debug App") as gui:
         response = gr.JSON(label="Output")
 
     login_btn.click(user_login, inputs=[user, pw, mfa_token], outputs=[token])
+    stats_btn.click(get_stats, inputs=[token], outputs=[response])
     pw.submit(user_login, inputs=[user, pw, mfa_token], outputs=[token])
     submit_btn.click(reply, inputs=[user_input, emb, graph, qa, ro, token], outputs=[response])

@@ -28,6 +28,7 @@ else:
 
 from rag import rag_invoke
 from utils.login import verify_token, login, is_admin, log_usage
+from utils.stats import get_usage_statistics
 from gui import gradio_gui
 
 ############# SETTINGS ##################
@@ -119,6 +120,21 @@ async def log(credentials: Credentials):
             "access-token": None,
             "error": "Invalid username or password"
         }, status_code=401)
+
+@app.post("/stats", response_model=dict)
+async def stats(access_token: str):
+    user = verify_token(access_token)
+    if not user:
+        return JSONResponse(content={"error": "Invalid token."}, status_code=401)
+    try:
+        statistics = get_usage_statistics()
+        if statistics:
+            return JSONResponse(content=statistics, status_code=200)
+        else:
+            return JSONResponse(content={"error": "No data found."}, status_code=401)
+    except Exception as e:
+        logger.error(e)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.post("/generate", response_model=dict)
 def generate(query: GenerateQueryParams, access_token: str):
