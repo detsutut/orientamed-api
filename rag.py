@@ -34,14 +34,17 @@ def rag_invoke(query,
                history=[],
                input_tokens_count=0,
                output_tokens_count=0):
-    response = RAG.invoke({"query": query,
-                           "history": from_list_to_messages(history),
-                           "additional_context": additional_context,
-                           "input_tokens_count": input_tokens_count,
-                           "output_tokens_count": output_tokens_count,
-                           "query_aug": query_aug,
-                           "retrieve_only": retrieve_only,
-                           "use_graph": use_graph,
-                           "use_embeddings": use_embeddings,
-                           "pre_translate": True})
-    return response
+    if len(query)==0:
+        return None
+    else:
+        response = RAG.invoke({"query": query,
+                               "history": from_list_to_messages(history),
+                               "additional_context": additional_context,
+                               "input_tokens_count": input_tokens_count,
+                               "output_tokens_count": output_tokens_count,
+                               "query_aug": query_aug,
+                               "retrieve_only": retrieve_only,
+                               "use_graph": use_graph,
+                               "use_embeddings": use_embeddings,
+                               "pre_translate": True})
+        return response

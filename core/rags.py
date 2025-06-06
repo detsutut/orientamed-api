@@ -151,22 +151,30 @@ class Rag:
 
     def concept_extractor(self, state: State) -> Command[Literal["kg_retriever","consistency_checker"]]:
         if not state["use_graph"]:
+            logger.debug(f"Graph not activate, bypassing concept extraction...")
             if state["answer_generated"]:
                 return Command(update={"status": "OK"},goto=END)
             else:
                 return Command(goto="ans_generator")
+        if state["answer_generated"]:
+            logger.debug(f"Running concept extraction on answer")
+        else:
+            logger.debug(f"Running concept extraction on query")
         if state["answer_generated"] and state["retrieve_only"]:
+            logger.debug(f"Retrieve only, bypassing concept extraction for answer...")
             return Command(update={"status": "OK"},goto=END)
         if state["pre_translate"]:
-            logger.info(f"Translating Text in English before feeding to Concept Extractor...")
+            logger.debug(f"Translating Text in English before feeding to Concept Extractor...")
             messages = self.prompts.translation.invoke({"source_lang": "Italian",
                                                           "target_lang": "English",
                                                           "source_text":  state["query"] if not state["answer_generated"] else state["answer"],
                                                           }).messages
             response = self.llm.generate(messages=messages, level="pro")
             text_to_send = response.content
+            logger.debug(f"Translated test: {textwrap.shorten(text_to_send, width=30)}")
         else:
             text_to_send = state["query"] if not state["answer_generated"] else state["answer"]
+            logger.debug(f"Translated test: {textwrap.shorten(text_to_send, width=30)}")
         logger.info(f"Extracting Concepts...")
         url = "https://dheal-com.unipv.it:7878/extract"
         params = {'text': text_to_send, 'o': 100, 'p': False}

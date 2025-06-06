@@ -49,18 +49,19 @@ def reply(user_input, emb, graph, qa, ro, token, r: gr.Request):
                              retrieve_only=ro,
                              use_embeddings=emb)
         duration_ms = int((time.time() - start_time) * 1000)
-        log_usage(username=user,
-                  token_in=request.get("input_tokens_count", 0),
-                  token_out=request.get("output_tokens_count", 0),
-                  duration_ms=duration_ms,
-                  session_id=token.split(".")[-1],
-                  ip_address=r.client.host)
-        if user_role != "admin":
-            over = check_daily_token_limit(username=user, role=user_role)
-            if over:
-                logger.warning("User has exceeded the daily token limit.")
-                set_softban(username=user)
-        return request
+        if request:
+            log_usage(username=user,
+                      token_in=request.get("input_tokens_count", 0),
+                      token_out=request.get("output_tokens_count", 0),
+                      duration_ms=duration_ms,
+                      session_id=token.split(".")[-1],
+                      ip_address=r.client.host)
+            if user_role != "admin":
+                over = check_daily_token_limit(username=user, role=user_role)
+                if over:
+                    logger.warning("User has exceeded the daily token limit.")
+                    set_softban(username=user)
+            return request
     return None
 
 
