@@ -108,6 +108,7 @@ class Rag:
 
     def orchestrator(self, state: State) -> Command[Literal["augmentator", "history_consolidator"]]:
         logger.info(f"Dispatching request...")
+        logger.debug(f"Request details:\n\t-Query: {textwrap.shorten(state['query'],30)}\n\t-History: {len(state['history'])} messages\n\t-Additional context: {state['additional_context']}\n\t-Query augmentation: {state['query_aug']}\n\t-Graph DB: {state['use_graph']}\n\t-Vector DB: {state['use_embeddings']}\n\t-Retrieve only: {state['retrieve_only']}\n\t-Pre-translate: {state['pre_translate']}")
         previous_user_interactions = [message for message in state["history"] if type(message) is HumanMessage]
         if len(previous_user_interactions) > 0:
             return Command(update={"answer_generated":False},
