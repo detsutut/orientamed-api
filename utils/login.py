@@ -135,26 +135,37 @@ def check_ban(username: str):
     try:
         stmt = select(User).where(User.username == username)
         user = db.scalars(stmt).first()
-        if user.softban_until and user.softban_until > datetime.now(timezone.utc):
-            logger.warning(f"User {username} is banned until {user.softban_until}")
-            return True
+        #If user has a softban countdown set
+        if user.softban_until:
+            #If the softban countdown is ahead of current time --> user is banned
+            if user.softban_until.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc):
+                logger.warning(f"User {username} is banned until {user.softban_until}")
+                return True
+            #If the countdown expired --> remove ban
+            else:
+                logger.warning(f"User {username} was banned but ban expired.")
+                user.softban_until = None
+                db.commit()
+                return False
         else:
             logger.debug(f"User {username} is not banned.")
             return False
     except Exception as e:
+        db.rollback()
         logger.error(f"Error checking ban for {username}: {e}")
         return True
     finally:
         db.close()
 
 def check_daily_token_limit(username: str, role="preview"):
+    logger.debug(f"Checking daily limit for {username} with role {role}...")
     if role == "preview":
-        limit = 10000
+        limit = 15000
     elif role == "admin":
         logger.warning(f"Checking limit for admin role: this is not supposed to happen.")
-        limit = 500000
+        limit = 5000000
     elif role == "user":
-        limit = 20000
+        limit = 200000
     else:
         logger.error(f"Invalid role: {role}")
         return True
@@ -165,8 +176,9 @@ def check_daily_token_limit(username: str, role="preview"):
             func.coalesce(func.sum(Usage.token_in + Usage.token_out), 0)
         ).filter(
             Usage.username == username,
-            cast(Usage.time, Date) == today
+            func.date(Usage.time) == today
         ).scalar()
+        logger.debug(f"Tokens used today: {total_tokens}. Limit for {role}: {limit}.")
         return total_tokens >= limit
     except Exception as e:
         logger.error(f"Error checking daily limit for {username}: {e}")

@@ -164,6 +164,8 @@ class Rag:
         if state["answer_generated"] and state["retrieve_only"]:
             logger.debug(f"Retrieve only, bypassing concept extraction for answer...")
             return Command(update={"status": "OK"},goto=END)
+        input_tokens = 0
+        output_tokens = 0
         if state["pre_translate"]:
             logger.debug(f"Translating Text in English before feeding to Concept Extractor...")
             messages = self.prompts.translation.invoke({"source_lang": "Italian",
@@ -171,6 +173,8 @@ class Rag:
                                                           "source_text":  state["query"] if not state["answer_generated"] else state["answer"],
                                                           }).messages
             response = self.llm.generate(messages=messages, level="pro")
+            input_tokens = response.usage_metadata["input_tokens"]
+            output_tokens = response.usage_metadata["output_tokens"]
             text_to_send = response.content
             logger.debug(f"Translated test: {textwrap.shorten(text_to_send, width=30)}")
         else:
@@ -198,12 +202,18 @@ class Rag:
             concepts = pd.DataFrame(response.json()).to_dict(orient='records')
         if not state["answer_generated"]:
             return Command(
-                update={"query_concepts": concepts},
+                update={"query_concepts": concepts,
+                        "input_tokens_count": input_tokens,
+                        "output_tokens_count": output_tokens
+                        },
                 goto="kg_retriever",
             )
         else:
             return Command(
-                update={"answer_concepts": concepts},
+                update={"answer_concepts": concepts,
+                        "input_tokens_count": input_tokens,
+                        "output_tokens_count": output_tokens
+                        },
                 goto="consistency_checker",
             )
 
