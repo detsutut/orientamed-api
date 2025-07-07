@@ -1,11 +1,12 @@
 import os
-
+from io import BytesIO
+from PIL import Image
 
 import yaml
 from boto3 import Session
 import logging
 
-from core.rags import Rag
+from core.orchestrator import Orchestrator
 from core.utils import from_list_to_messages
 
 
@@ -17,13 +18,17 @@ with open(os.getenv("CORE_SETTINGS_PATH")) as stream:
     rag_config = yaml.safe_load(stream)
 
 logger.info("Initializing RAG model...")
-RAG = Rag(session=Session(), vector_store=api_config.get("vector-db-path"))
+RAG = Orchestrator(session=Session(), vector_store=api_config.get("vector-db-path"))
 
 def update_rag(session: Session):
     global RAG
     logger.info("Updating RAG model...")
-    RAG = Rag(session=session, vector_store=api_config.get("vector-db-path"))
+    RAG = Orchestrator(session=session, vector_store=api_config.get("vector-db-path"))
     logger.info("RAG updated")
+
+def rag_schema():
+    global RAG
+    return Image.open(BytesIO(RAG.get_image()))
 
 def rag_invoke(query,
                query_aug=False,
@@ -31,6 +36,7 @@ def rag_invoke(query,
                use_graph=False,
                use_embeddings=True,
                additional_context="",
+               reranker="RRF",
                history=[],
                input_tokens_count=0,
                output_tokens_count=0):
@@ -45,6 +51,7 @@ def rag_invoke(query,
                                "query_aug": query_aug,
                                "retrieve_only": retrieve_only,
                                "use_graph": use_graph,
+                               "reranker": reranker,
                                "use_embeddings": use_embeddings,
                                "pre_translate": True})
         return response

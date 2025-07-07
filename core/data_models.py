@@ -20,6 +20,7 @@ class RetrievedDocument(BaseModel):
 class RetrievedDocuments(BaseModel):
     embeddings: List[RetrievedDocument]
     graphs: List[RetrievedDocument]
+    reranked: List[str]
 
 class ConsumedTokens(BaseModel):
     input: int

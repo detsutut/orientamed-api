@@ -7,7 +7,7 @@ import logging
 from utils.login import login, verify_token, log_usage, get_role, check_ban, check_daily_token_limit, set_softban
 from utils.stats import get_usage_statistics
 from core.utils import get_mfa_response
-from rag import update_rag, rag_invoke
+from rag import update_rag, rag_invoke, rag_schema
 
 logger = logging.getLogger('app.' + __name__)
 
@@ -34,6 +34,13 @@ def get_stats(token):
         return None
     statistics = get_usage_statistics()
     return statistics
+
+def get_img(token):
+    user = verify_token(token)
+    if not user:
+        gr.Warning("Invalid token",  duration=10)
+        return None
+    return rag_schema()
 
 def reply(user_input, emb, graph, qa, ro, token, r: gr.Request):
     user = verify_token(token)
@@ -85,7 +92,11 @@ with gr.Blocks(title="Debug App") as gui:
             submit_btn = gr.Button("Send", variant="primary")
     with gr.Group():
         response = gr.JSON(label="Output")
+    with gr.Group():
+        schema = gr.Image(label="Output")
+        schema_btn = gr.Button("Load", variant="primary")
 
+    schema_btn.click(get_img, inputs=[token], outputs=[schema])
     login_btn.click(user_login, inputs=[user, pw, mfa_token], outputs=[token])
     stats_btn.click(get_stats, inputs=[token], outputs=[response])
     pw.submit(user_login, inputs=[user, pw, mfa_token], outputs=[token])

@@ -174,7 +174,8 @@ def generate(query: GenerateQueryParams, access_token: str):
             },
             "retrieved_documents": {
                 "embeddings": [d.model_dump() for d in response.get("docs_embeddings",[])],
-                "graphs": [d.model_dump() for d in response.get("docs_graph",[])]
+                "graphs": [d.model_dump() for d in response.get("docs_graph",[])],
+                "reranked": [d.id for d in response.get("references",[])]
             },
             "concepts": {
                 "query": response.get("query_concepts",[]),
