@@ -82,11 +82,11 @@
   "history_consolidation": [
     {
       "role": "system",
-      "content": "Given the following conversation between a user and an AI assistant and a follow up question from user, rephrase the follow up question to be a standalone question. Ensure that the standalone question summarizes the conversation and completes the follow up question with all the necessary context. The standalone question must be in Italian.\nChat History:\n{history}"
+      "content": "Here is a conversation between a user and an healthcare AI assistant, and a follow up input message from the user. You must rephrase the follow up input to be standalone, retaining the most important bits of the previous rounds of the conversation and completing the user input with all the necessary context.\nBy reading your rephrased message, the reader must have a comprehensive overview of the conversation and access to the relevant information provided by the user. The rephrased standalone message should still deliver the intent of the original follow up message, to guarantee that the conversation can continue as intended.\nDo not provide additional commentary, output only the rephrased message.\nThe rephrased message must be in Italian.\n\nChat Conversation history:\n{history}"
     },
     {
       "role": "human",
-      "content": "Question: {question}"
+      "content": "Follow up user input: {question}"
     }
   ],
   "topics_suggestion": [
@@ -107,6 +107,16 @@
     {
       "role": "human",
       "content": "Domanda:\n{question}"
+    }
+  ],
+  "summarization": [
+    {
+      "role": "system",
+      "content": "You are a healthcare expert. Summarize the following medical-related content in no more than 1000 words. Answer in Italian."
+    },
+    {
+      "role": "human",
+      "content": "Content:\n{content}"
     }
   ],
   "translation": [

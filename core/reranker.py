@@ -12,9 +12,9 @@ class TopKReranker:
         """
         self.k = k
 
-    def __top_k_with_sampling__(self, scored_lists: List[Tuple[Union[str, int], float]], higher_better=True) -> List[
+    def __top_k_with_sampling__(self, scored_list: List[Tuple[Union[str, int], float]], higher_better=True) -> List[
         Tuple[Union[str, int], float]]:
-        sorted_docs = sorted(scored_lists, key=lambda x: x[1], reverse=higher_better)
+        sorted_docs = sorted(scored_list, key=lambda x: x[1], reverse=higher_better)
         top_docs = []
         score_buckets = defaultdict(list)
 

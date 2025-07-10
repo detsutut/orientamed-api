@@ -12,6 +12,8 @@ from logging.handlers import RotatingFileHandler
 import uvicorn
 import gradio as gr
 
+from core.data_models import LLMResponse
+
 ############# .ENV ####################
 
 if find_dotenv():
@@ -74,6 +76,11 @@ class GenerateQueryParams(BaseModel):
     retrieve_only: bool = Field(default=False, description="Retrieve only")
     use_graph: bool = Field(default=True, description="Use graph")
     use_embeddings: bool = Field(default=True, description="Use embeddings")
+    reranker: str = Field(default="RRF", description="Reranker type. Options: RRF or top_k")
+    check_consistency: bool = Field(default=False, description="Check answer consistency with graph")
+    max_refs: int = Field(default=5, description="Max retrieved references to use to answer")
+    pre_translate: bool = Field(default=False, description="Use preliminary LLM translation in concept extraction or delegate it to the concept extractor")
+
 
 ############### API ######################
 app = FastAPI(title="OrientaMed",
@@ -148,17 +155,21 @@ def generate(query: GenerateQueryParams, access_token: str):
         return JSONResponse(content={"error": "User is banned."}, status_code=403)
     try:
         start_time = time.time()
-        response = rag_invoke(query=query.user_input,
+        response: LLMResponse = rag_invoke(query=query.user_input,
                               history=query.history,
                               additional_context=query.additional_context,
                               query_aug=query.augment_query,
                               retrieve_only=query.retrieve_only,
                               use_graph=query.use_graph,
-                              use_embeddings=query.use_embeddings)
+                              use_embeddings=query.use_embeddings,
+                              reranker=query.reranker,
+                              pre_translate=query.pre_translate,
+                              max_refs=query.max_refs,
+                              check_consistency=query.check_consistency)
         duration_ms = int((time.time() - start_time) * 1000)
         log_usage(username=user,
-                  token_in=response.get("input_tokens_count", 0),
-                  token_out=response.get("output_tokens_count", 0),
+                  token_in=response.consumed_tokens.input,
+                  token_out=response.consumed_tokens.output,
                   duration_ms=duration_ms,
                   session_id=access_token.split(".")[-1])
         if user_role != "admin":
@@ -166,22 +177,7 @@ def generate(query: GenerateQueryParams, access_token: str):
             if over:
                 logger.warning("User has exceeded the daily token limit.")
                 set_softban(username=user)
-        return JSONResponse(content={
-            "answer": response.get("answer"),
-            "consumed_tokens":{
-                "input": response.get("input_tokens_count",0),
-                "output": response.get("output_tokens_count",0)
-            },
-            "retrieved_documents": {
-                "embeddings": [d.model_dump() for d in response.get("docs_embeddings",[])],
-                "graphs": [d.model_dump() for d in response.get("docs_graph",[])],
-                "reranked": [d.id for d in response.get("references",[])]
-            },
-            "concepts": {
-                "query": response.get("query_concepts",[]),
-                "answer": response.get("answer_concepts",[])
-            }
-        }, status_code=200)
+        return JSONResponse(content=response.model_dump(), status_code=200)
     except Exception as e:
         logger.error(e)
         return JSONResponse(content={"error": str(e)}, status_code=500)
